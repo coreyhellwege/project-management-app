@@ -1,11 +1,11 @@
-const { GraphQLObjectType, GraphQLID, GraphQLString, GraphQLSchema, GraphQLList } = require('graphql')
+const { GraphQLObjectType, GraphQLID, GraphQLString, GraphQLSchema, GraphQLList, GraphQLNonNull } = require('graphql')
 
 // Mongoose models
 const Project = require('../models/Project')
-const Client = require('../models/Project')
+const Client = require('../models/Client')
 
 // Create types for each resource
-const clientType = new GraphQLObjectType({
+const ClientType = new GraphQLObjectType({
     name: 'Client',
     fields: () => ({
         id: { type: GraphQLID },
@@ -15,7 +15,7 @@ const clientType = new GraphQLObjectType({
     })
 })
 
-const projectType = new GraphQLObjectType({
+const ProjectType = new GraphQLObjectType({
     name: 'Project',
     fields: () => ({
         id: { type: GraphQLID },
@@ -23,7 +23,7 @@ const projectType = new GraphQLObjectType({
         description: { type: GraphQLString },
         status: { type: GraphQLString },
         client: { 
-            type: clientType,
+            type: ClientType,
             resolve(parent, args) {
                 return Client.findById(parent.clientId)
             }
@@ -36,26 +36,26 @@ const RootQuery = new GraphQLObjectType({
     name: 'RootQueryType',
     fields: {
         clients: {
-            type: new GraphQLList(clientType),
+            type: new GraphQLList(ClientType),
             resolve(parent, args) {
                 return Client.find()
             }
         },
         client: {
-            type: clientType,
+            type: ClientType,
             args: { id: { type: GraphQLID }},
             resolve(parent, args) {
                 return Client.findById(args.id)
             }
         },
         projects: {
-            type: new GraphQLList(projectType),
+            type: new GraphQLList(ProjectType),
             resolve(parent, args) {
                 return Project.find()
             }
         },
         project: {
-            type: projectType,
+            type: ProjectType,
             args: { id: { type: GraphQLID }},
             resolve(parent, args) {
                 return Project.findById(args.id)
@@ -64,6 +64,34 @@ const RootQuery = new GraphQLObjectType({
     }
 })
 
+// Mutations
+const mutation = new GraphQLObjectType({
+    name: 'Mutation',
+    fields: {
+        // Create a client
+        addClient: {
+            type: ClientType,
+            // args are the fields to be added
+            args: {
+                name: { type: GraphQLNonNull(GraphQLString) }, // Required
+                email: { type: GraphQLNonNull(GraphQLString) }, // Required
+                phone: { type: GraphQLNonNull(GraphQLString) } // Required
+            },
+            resolve(parent, args) {
+                // args come from the graphql query
+                const client = new Client({
+                    name: args.name, 
+                    email: args.email,
+                    phone: args.phone
+                })
+
+                return client.save()
+            }
+        }
+    }
+})
+
 module.exports = new GraphQLSchema({
-    query: RootQuery
+    query: RootQuery,
+    mutation
 })
